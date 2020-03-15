@@ -14,7 +14,9 @@
 
 // IMU data
 // Global variables
-int accY_Treshhold = 0.4;
+float IMUTreshhold = 0.85;
+float IMUTreshhold2 = 0.3;
+
 float accX = 0.0F;
 float accY = 0.0F;
 float accZ = 0.0F;
@@ -29,6 +31,11 @@ float temp = 0.0F;
 // refresh timer
 unsigned long refreshOrientationTimeout = 500;
 unsigned long lastRefreshOrientation = 0;
+
+#define ORIENTATION_UP 1
+#define ORIENTATION_DOWN 2
+#define ORIENTATION_LEFT 3
+#define ORIENTATION_RIGHT 4
 
 void setup(void)
 {
@@ -56,7 +63,8 @@ void setup(void)
 
 void loop()
 {
-  CheckOrientation();
+  int orientation = CheckOrientation();
+  RotateDisplayByOrientation(orientation);
 }
 
 int CheckOrientation()
@@ -68,20 +76,54 @@ int CheckOrientation()
 
     updateIMUData();
 
-    M5.Lcd.setCursor(0, 20);
-    if (accY > accY_Treshhold)
+    // down      accy < -0.85 & abs(accx) < 0.2
+    // Up        accy > 0.85  & abs(accx) < 0.2
+    // left      accx < -0.85 & abs(accy) < 0.2
+    // right     accx > 0.85  & abs(accy) < 0.2
+
+    if (accY < -IMUTreshhold && abs(accX) < IMUTreshhold2)
     {
-      M5.Lcd.println("clockwise");
+      return ORIENTATION_DOWN;
     }
-    else if (accY < -accY_Treshhold)
+    else if (accY > IMUTreshhold && abs(accX) < IMUTreshhold2)
     {
-      M5.Lcd.println("r-clockwise");
-    }else{
-      M5.Lcd.println("No rotation");
+      return ORIENTATION_UP;
+    }
+    else if (accX < -IMUTreshhold && abs(accY) < IMUTreshhold2)
+    {
+      return ORIENTATION_LEFT;
+    }
+    else if (accX > IMUTreshhold && abs(accY) < IMUTreshhold2)
+    {
+      return ORIENTATION_RIGHT;
     }
   }
   else
     return -1;
+}
+
+void RotateDisplayByOrientation(int orientation)
+{
+  if (!orientation)
+    return;
+    
+  switch (orientation)
+  {
+  case ORIENTATION_UP:
+    M5.Lcd.println("UP");
+    break;
+  case ORIENTATION_RIGHT:
+    M5.Lcd.println("RIGHT");
+    break;
+  case ORIENTATION_DOWN:
+    M5.Lcd.println("DOWN");
+    break;
+  case ORIENTATION_LEFT:
+    M5.Lcd.println("LEFT");
+    break;
+  default:
+    break;
+  }
 }
 
 int updateIMUData()
@@ -90,5 +132,22 @@ int updateIMUData()
   M5.IMU.getAccelData(&accX, &accY, &accZ);
   M5.IMU.getAhrsData(&pitch, &roll, &yaw);
   M5.IMU.getTempData(&temp);
+}
 
+void printIMUStatus()
+{
+  M5.Lcd.setCursor(0, 20);
+  M5.Lcd.printf("%6.2f  %6.2f  %6.2f      ", gyroX, gyroY, gyroZ);
+  M5.Lcd.setCursor(220, 42);
+  M5.Lcd.print(" o/s");
+  M5.Lcd.setCursor(0, 65);
+  M5.Lcd.printf(" %5.2f   %5.2f   %5.2f   ", accX, accY, accZ);
+  M5.Lcd.setCursor(220, 87);
+  M5.Lcd.print(" G");
+  M5.Lcd.setCursor(0, 110);
+  M5.Lcd.printf(" %5.2f   %5.2f   %5.2f   ", pitch, roll, yaw);
+  M5.Lcd.setCursor(220, 132);
+  M5.Lcd.print(" degree");
+  M5.Lcd.setCursor(0, 155);
+  M5.Lcd.printf("Temperature : %.2f C", temp);
 }
