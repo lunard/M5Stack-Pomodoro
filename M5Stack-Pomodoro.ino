@@ -31,11 +31,22 @@ float temp = 0.0F;
 // refresh timer
 unsigned long refreshOrientationTimeout = 500;
 unsigned long lastRefreshOrientation = 0;
+int lastOrientation = -1;
 
 #define ORIENTATION_UP 1
 #define ORIENTATION_DOWN 2
 #define ORIENTATION_LEFT 3
 #define ORIENTATION_RIGHT 4
+
+#define TICK_CONTEINER_HEIGHT_IN_PX 190
+#define TICK_CONTEINER_WIDTH_IN_PX 160
+
+int tickDurationInSec = 2;
+int currentTick = 0;
+unsigned long lastTickCheck = 0;
+
+#define NUMBER_OF_TICKS 10 // a tick is a single interval of timer
+int tickHeight = (TICK_CONTEINER_HEIGHT_IN_PX / NUMBER_OF_TICKS) - 2;
 
 void setup(void)
 {
@@ -57,14 +68,86 @@ void setup(void)
   delay(1000);
 
   M5.Lcd.clear(BLACK);
-  M5.Lcd.setTextColor(GREEN, BLACK);
+  M5.Lcd.setTextColor(WHITE, BLACK);
   M5.Lcd.setTextSize(2);
 }
 
 void loop()
 {
   int orientation = CheckOrientation();
+
+  if (orientation > 0 && lastOrientation != orientation)
+    M5.Lcd.clear(BLACK);
+
   RotateDisplayByOrientation(orientation);
+  //TestOrientation(orientation);
+
+  // check tick
+  long currentMillis = millis();
+  if (currentTick == 0 || currentMillis - lastTickCheck > tickDurationInSec * 1000)
+  {
+    currentTick++;
+    lastTickCheck = currentMillis;
+  }
+
+  drawPage(orientation);
+
+  if (orientation > 0)
+    lastOrientation = orientation;
+}
+
+void drawPage(int orientation)
+{
+
+  if (currentTick > NUMBER_OF_TICKS)
+  {
+    // manage elapsed pomodoro!
+  }
+  else
+  {
+    if (orientation == ORIENTATION_UP)
+    {
+      drawTicks();
+    }
+  }
+
+  if (orientation < 0 || lastOrientation == orientation)
+    return;
+
+  switch (orientation)
+  {
+  case ORIENTATION_UP:
+    drawTicksContainer();
+    break;
+  case ORIENTATION_RIGHT:
+    break;
+  case ORIENTATION_DOWN:
+    drawTicksContainer();
+    break;
+  case ORIENTATION_LEFT:
+    break;
+  default:
+    break;
+  }
+}
+
+void drawTicks()
+{
+  uint16_t color = 0;
+  for (size_t i = 0; i <= currentTick; i++)
+  {
+    if (i <= 2)
+      color = 0x1d69;
+    if (i > 2 && i <= 4)
+      color = 0x9d6a;
+    if (i > 4 && i <= 6)
+      color = 0xe66a;
+    if (i > 6 && i <= 8)
+      color = 0xe50a;
+    if (i > 8 && i <= 10)
+      color = 0xe06a;
+    M5.Lcd.fillRect(81, 231 - (tickHeight * (i + 1)), TICK_CONTEINER_WIDTH_IN_PX - 1, tickHeight - 1, color);
+  }
 }
 
 int CheckOrientation()
@@ -104,22 +187,47 @@ int CheckOrientation()
 
 void RotateDisplayByOrientation(int orientation)
 {
-  if (!orientation)
+  if (orientation < 0)
     return;
-    
+
   switch (orientation)
   {
   case ORIENTATION_UP:
-    M5.Lcd.println("UP");
+    M5.Lcd.setRotation(1);
     break;
   case ORIENTATION_RIGHT:
-    M5.Lcd.println("RIGHT");
+    M5.Lcd.setRotation(2);
     break;
   case ORIENTATION_DOWN:
-    M5.Lcd.println("DOWN");
+    M5.Lcd.setRotation(3);
     break;
   case ORIENTATION_LEFT:
-    M5.Lcd.println("LEFT");
+    M5.Lcd.setRotation(0);
+    break;
+  default:
+    break;
+  }
+}
+
+void TestOrientation(int orientation)
+{
+  if (orientation < 0 || lastOrientation == orientation)
+    return;
+
+  M5.Lcd.clear(WHITE);
+  switch (orientation)
+  {
+  case ORIENTATION_UP:
+    M5.Lcd.drawPngFile(SD, "/up.png");
+    break;
+  case ORIENTATION_RIGHT:
+    M5.Lcd.drawPngFile(SD, "/left.png");
+    break;
+  case ORIENTATION_DOWN:
+    M5.Lcd.drawPngFile(SD, "/down.png");
+    break;
+  case ORIENTATION_LEFT:
+    M5.Lcd.drawPngFile(SD, "/right.png");
     break;
   default:
     break;
@@ -150,4 +258,11 @@ void printIMUStatus()
   M5.Lcd.print(" degree");
   M5.Lcd.setCursor(0, 155);
   M5.Lcd.printf("Temperature : %.2f C", temp);
+}
+
+void drawTicksContainer()
+{
+  M5.Lcd.drawFastHLine(80, 230, TICK_CONTEINER_WIDTH_IN_PX, WHITE);
+  M5.Lcd.drawFastVLine(80, 40, TICK_CONTEINER_HEIGHT_IN_PX, WHITE);
+  M5.Lcd.drawFastVLine(240, 40, TICK_CONTEINER_HEIGHT_IN_PX, WHITE);
 }
