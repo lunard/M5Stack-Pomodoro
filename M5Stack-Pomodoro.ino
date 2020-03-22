@@ -11,6 +11,9 @@
 #include <M5Display.h>
 #include <M5Stack.h>
 #include <WiFiHelper.h>
+#include <ArduinoJson.h>
+
+#include <SD.h>
 
 // IMU data
 // Global variables
@@ -48,10 +51,22 @@ unsigned long lastTickCheck = 0;
 #define NUMBER_OF_TICKS 10 // a tick is a single interval of timer
 int tickHeight = (TICK_CONTEINER_HEIGHT_IN_PX / NUMBER_OF_TICKS) - 2;
 
+struct Config
+{
+  char wifiSSID[64];
+  char wifiPassword[64];
+};
+Config config;
+
+WiFiHelper *wifiHelper;
+IPAddress ipAddress;
+
 void setup(void)
 {
 
   M5.begin();
+
+  Serial.begin(9600);
 
   /*
     Power chip connected to gpio21, gpio22, I2C device
@@ -62,14 +77,33 @@ void setup(void)
 
   M5.IMU.Init();
 
-  // Setup logo
-  M5.Lcd.setBrightness(100);
-  M5.Lcd.drawJpgFile(SD, "/pomodoro.jpg");
-  delay(1000);
-
   M5.Lcd.clear(BLACK);
   M5.Lcd.setTextColor(WHITE, BLACK);
   M5.Lcd.setTextSize(2);
+  M5.Lcd.setFreeFont(FSB9);   // Select Free Serif 9 point font, could use:
+
+  if (!loadConfiguraton("/config.json", config))
+  {
+    M5.Lcd.println("Cannot read the configuration!");
+    Serial.println("Cannot read the configuration!");
+  }
+
+  wifiHelper = new WiFiHelper(config.wifiSSID, config.wifiPassword);
+
+  // Setup logo
+  M5.Lcd.setBrightness(100);
+  M5.Lcd.drawJpgFile(SD, "/pomodoro.jpg");
+
+  ipAddress = wifiHelper->connect();
+
+  // Download new set of splash images
+  downloadSplashImages("time", 10);
+  for (size_t i = 0; i < 10; i++)
+  {
+    String fileName = "/splashImage_" + String(i + 1) + ".jpg";
+    M5.Lcd.drawJpgFile(SD, fileName.c_str());
+    delay(2000);
+  }
 }
 
 void loop()
@@ -265,4 +299,49 @@ void drawTicksContainer()
   M5.Lcd.drawFastHLine(80, 230, TICK_CONTEINER_WIDTH_IN_PX, WHITE);
   M5.Lcd.drawFastVLine(80, 40, TICK_CONTEINER_HEIGHT_IN_PX, WHITE);
   M5.Lcd.drawFastVLine(240, 40, TICK_CONTEINER_HEIGHT_IN_PX, WHITE);
+}
+
+void downloadSplashImages(String topic, int quantity)
+{
+  for (size_t i = 0; i < quantity; i++)
+  {
+    String url = "https://source.unsplash.com/random/320x240?" + topic;
+    String fileName = "/splashImage_" + String(i + 1) + ".jpg";
+
+    bool result = wifiHelper->downloadFile(SD, url, fileName);
+    Serial.println("Download of splash image " + fileName + (result ? " DONE" : " FAIL"));
+  }
+}
+
+bool loadConfiguraton(const char *filename, Config &config)
+{
+  if (!SD.exists(filename))
+    return false;
+
+  // Open file for reading
+  File file = SD.open(filename);
+
+  // Allocate a temporary JsonDocument
+  // Don't forget to change the capacity to match your requirements.
+  // Use arduinojson.org/v6/assistant to compute the capacity.
+  StaticJsonDocument<512> doc;
+
+  // Deserialize the JSON document
+  DeserializationError error = deserializeJson(doc, file);
+  if (error)
+    Serial.println(F("Failed to read file, using default configuration"));
+
+  // Copy values from the JsonDocument to the Config
+  //config.wifiPassword = doc["wifiPassword"];
+  strlcpy(config.wifiSSID,              // <- destination
+          doc["wifiSSID"],              // <- source
+          sizeof(config.wifiSSID));     // <- destination's capacity
+  strlcpy(config.wifiPassword,          // <- destination
+          doc["wifiPassword"],          // <- source
+          sizeof(config.wifiPassword)); // <- destination's capacity
+
+  // Close the file (Curiously, File's destructor doesn't close the file)
+  file.close();
+
+  return true;
 }
