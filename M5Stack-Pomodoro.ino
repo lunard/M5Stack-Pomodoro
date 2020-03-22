@@ -79,8 +79,8 @@ void setup(void)
 
   M5.Lcd.clear(BLACK);
   M5.Lcd.setTextColor(WHITE, BLACK);
-  M5.Lcd.setTextSize(2);
-  M5.Lcd.setFreeFont(FSB9);   // Select Free Serif 9 point font, could use:
+  M5.Lcd.setTextSize(1);
+  M5.Lcd.setFreeFont(FS9); 
 
   if (!loadConfiguraton("/config.json", config))
   {
@@ -93,12 +93,22 @@ void setup(void)
   // Setup logo
   M5.Lcd.setBrightness(100);
   M5.Lcd.drawJpgFile(SD, "/pomodoro.jpg");
+  delay(500);
+
+  M5.Lcd.clear(BLACK);
+  M5.Lcd.drawPngFile(SD, "/wifi.png", 90, 70);
+  M5.Lcd.setCursor(10, 20);
+  M5.Lcd.print("Connecting to '" + String(config.wifiSSID) + "'..");
 
   ipAddress = wifiHelper->connect();
+  M5.Lcd.setCursor(10, 50);
+  M5.Lcd.print(ipAddress);
+  delay(1000);
 
   // Download new set of splash images
-  downloadSplashImages("time", 10);
-  for (size_t i = 0; i < 10; i++)
+  int quantity = 5;
+  downloadSplashImages("cats", quantity);
+  for (size_t i = 0; i < quantity; i++)
   {
     String fileName = "/splashImage_" + String(i + 1) + ".jpg";
     M5.Lcd.drawJpgFile(SD, fileName.c_str());
@@ -303,16 +313,41 @@ void drawTicksContainer()
 
 void downloadSplashImages(String topic, int quantity)
 {
+
+  M5.Lcd.clear(BLACK);
+  M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+
+  int y = 130;
+  String progressFileName = "/catProgress.png";
   for (size_t i = 0; i < quantity; i++)
   {
+    M5.Lcd.fillRect(0, 0, 320, 90, BLACK); // clear
+    M5.Lcd.setCursor(10, 60);
+    if (i > 0)
+    {
+      M5.Lcd.print("Got splash " + String(i) + "/" + String(quantity) + "   ");
+    }
+    else
+    {
+      M5.Lcd.print("Getting first splash..");
+    }
+
     String url = "https://source.unsplash.com/random/320x240?" + topic;
     String fileName = "/splashImage_" + String(i + 1) + ".jpg";
 
     bool result = wifiHelper->downloadFile(SD, url, fileName);
     Serial.println("Download of splash image " + fileName + (result ? " DONE" : " FAIL"));
+
+    if (i > 1 && i % 8 == 0)
+    {
+      progressFileName = progressFileName.indexOf("Rotated") > 0 ? "/catProgress.png" : "/catProgressRotated.png";
+    }
+
+    M5.Lcd.drawPngFile(SD, progressFileName.c_str(), (i % 8) * 35 + 2, y, 35, 35);
   }
 }
 
+// See https://arduinojson.org/v6/doc/
 bool loadConfiguraton(const char *filename, Config &config)
 {
   if (!SD.exists(filename))
