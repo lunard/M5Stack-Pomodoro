@@ -103,6 +103,9 @@ void setup(void)
   ipAddress = wifiHelper->connect();
   M5.Lcd.setCursor(10, 50);
   M5.Lcd.print(ipAddress);
+  M5.Lcd.print(" - ");
+  M5.Lcd.print(wifiHelper->getFormattedTime());
+
   delay(1000);
 
   // Download new set of splash images
