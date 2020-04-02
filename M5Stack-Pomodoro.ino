@@ -48,6 +48,8 @@ int tickDurationInSec = 2;
 int currentTick = 0;
 unsigned long lastTickCheck = 0;
 
+unsigned long remoteSplashImgDownloadTimeoutInSec = 60 * 60 * 24;
+
 #define NUMBER_OF_TICKS 10 // a tick is a single interval of timer
 int tickHeight = (TICK_CONTEINER_HEIGHT_IN_PX / NUMBER_OF_TICKS) - 2;
 
@@ -80,7 +82,7 @@ void setup(void)
   M5.Lcd.clear(BLACK);
   M5.Lcd.setTextColor(WHITE, BLACK);
   M5.Lcd.setTextSize(1);
-  M5.Lcd.setFreeFont(FS9); 
+  M5.Lcd.setFreeFont(FS9);
 
   if (!loadConfiguraton("/config.json", config))
   {
@@ -106,16 +108,28 @@ void setup(void)
   M5.Lcd.print(" - ");
   M5.Lcd.print(wifiHelper->getFormattedTime());
 
+  unsigned long lasEpochTime = readEpochTimeFromFile("/lastSplashImagesUpdate.json");
   delay(1000);
 
-  // Download new set of splash images
-  int quantity = 5;
-  downloadSplashImages("cats", quantity);
-  for (size_t i = 0; i < quantity; i++)
+  if (lasEpochTime <= 0 || wifiHelper->getEpochTime() - lasEpochTime > remoteSplashImgDownloadTimeoutInSec)
   {
-    String fileName = "/splashImage_" + String(i + 1) + ".jpg";
-    M5.Lcd.drawJpgFile(SD, fileName.c_str());
-    delay(2000);
+    M5.Lcd.clear(BLACK);
+    M5.Lcd.setCursor(10, 70);
+    M5.Lcd.print("Splash images to old!");
+    M5.Lcd.setCursor(10, 95);
+    M5.Lcd.print("..they will be downloaded again!");
+    delay(3000);
+
+    // Download new set of splash images
+    int quantity = 10;
+    downloadSplashImages("cats", quantity);
+    for (size_t i = 0; i < quantity; i++)
+    {
+      String fileName = "/splashImage_" + String(i + 1) + ".jpg";
+      M5.Lcd.drawJpgFile(SD, fileName.c_str());
+      delay(2000);
+    }
+    writeEpochTimeToFile("/lastSplashImagesUpdate.json", wifiHelper->getEpochTime());
   }
 }
 
@@ -382,4 +396,46 @@ bool loadConfiguraton(const char *filename, Config &config)
   file.close();
 
   return true;
+}
+
+bool writeEpochTimeToFile(const char *filename, unsigned long epochTime)
+{
+  if (SD.exists(filename))
+    SD.remove(filename);
+
+  // create file
+  File file = SD.open(filename, FILE_WRITE);
+
+  StaticJsonDocument<512> doc;
+  doc["epochTime"] = epochTime;
+
+  size_t byteWritten = serializeJsonPretty(doc, file);
+  file.flush();
+  file.close();
+  if (byteWritten <= 0)
+  {
+    Serial.println("writeEpochTimeToFile: cannot write on the file: " + String(filename));
+    return false;
+  }
+  else
+    return true;
+}
+
+unsigned long readEpochTimeFromFile(const char *filename)
+{
+  if (!SD.exists(filename))
+    return -1;
+
+  // Open file for reading
+  File file = SD.open(filename);
+
+  StaticJsonDocument<512> doc;
+
+  DeserializationError error = deserializeJson(doc, file);
+  if (error)
+    Serial.println("readEpochTimeFromFile: failed to read file:" + String(filename));
+
+  file.close();
+
+  return doc["epochTime"].as<unsigned long>();
 }
