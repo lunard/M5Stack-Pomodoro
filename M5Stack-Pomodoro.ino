@@ -48,11 +48,14 @@ int tickDurationInSec = 2;
 int currentTick = 0;
 unsigned long lastTickCheck = 0;
 
-unsigned long remoteSplashImgDownloadTimeoutInSec = 60 * 60 * 24;
+unsigned long remoteSplashImgDownloadTimeoutInSec = 60 * 60 * 24 * 7;
+unsigned long lastSplashRefresh = 0;
 
 #define NUMBER_OF_TICKS 10 // a tick is a single interval of timer
 int tickHeight = (TICK_CONTEINER_HEIGHT_IN_PX / NUMBER_OF_TICKS) - 2;
+#define NUMBERS_OF_SPLASH_IMG 50
 
+unsigned long startBreak = 0;
 struct Config
 {
   char wifiSSID[64];
@@ -121,14 +124,7 @@ void setup(void)
     delay(3000);
 
     // Download new set of splash images
-    int quantity = 10;
-    downloadSplashImages("cats", quantity);
-    for (size_t i = 0; i < quantity; i++)
-    {
-      String fileName = "/splashImage_" + String(i + 1) + ".jpg";
-      M5.Lcd.drawJpgFile(SD, fileName.c_str());
-      delay(2000);
-    }
+    downloadSplashImages("cats", NUMBERS_OF_SPLASH_IMG);
     writeEpochTimeToFile("/lastSplashImagesUpdate.json", wifiHelper->getEpochTime());
   }
 }
@@ -145,7 +141,7 @@ void loop()
 
   // check tick
   long currentMillis = millis();
-  if (currentTick == 0 || currentMillis - lastTickCheck > tickDurationInSec * 1000)
+  if (canContinueToDrawTicks() && (currentTick == 0 || currentMillis - lastTickCheck > tickDurationInSec * 1000))
   {
     currentTick++;
     lastTickCheck = currentMillis;
@@ -159,25 +155,40 @@ void loop()
 
 void drawPage(int orientation)
 {
-
   if (currentTick > NUMBER_OF_TICKS)
   {
     // manage elapsed pomodoro!
   }
   else
   {
-    if (orientation == ORIENTATION_UP)
+    switch (orientation)
     {
+    case ORIENTATION_UP:
       drawTicks();
+      break;
+    case ORIENTATION_RIGHT:
+      break;
+    case ORIENTATION_DOWN:
+      drawTicksContainer();
+      break;
+    case ORIENTATION_LEFT:
+      drawRandomSplashImages();
+      drawBreakDuration();
+      break;
+    default:
+      break;
     }
   }
 
   if (orientation < 0 || lastOrientation == orientation)
     return;
 
+  // I will be here only upon orientation change
   switch (orientation)
   {
   case ORIENTATION_UP:
+    M5.Lcd.setFreeFont(FS9);
+    resetBreakDuration();
     drawTicksContainer();
     break;
   case ORIENTATION_RIGHT:
@@ -186,9 +197,44 @@ void drawPage(int orientation)
     drawTicksContainer();
     break;
   case ORIENTATION_LEFT:
+    M5.Lcd.setFreeFont(FSB9);
+    M5.Lcd.setTextColor(BLACK, YELLOW);
+    startBreak = millis();
+    drawBreakDuration();
     break;
   default:
     break;
+  }
+}
+
+bool canContinueToDrawTicks()
+{
+  return startBreak == 0;
+}
+
+void drawBreakDuration()
+{
+  long currentMillis = millis();
+
+  M5.Lcd.fillRect(0, 300, 240, 20, YELLOW);
+  M5.Lcd.setCursor(60, 316);
+  M5.Lcd.print("Await by " + String((int)(currentMillis - startBreak) / 1000) + "sec");
+}
+
+void resetBreakDuration()
+{
+  startBreak = 0;
+}
+
+void drawRandomSplashImages()
+{
+  long currentMillis = millis();
+  if (lastSplashRefresh == 0 || (currentMillis - lastSplashRefresh) > 5000)
+  {
+    int index = random(1, NUMBERS_OF_SPLASH_IMG);
+    String fileName = "/splashImage_" + String(index) + ".jpg";
+    M5.Lcd.drawJpgFile(SD, fileName.c_str());
+    lastSplashRefresh = currentMillis;
   }
 }
 
@@ -349,7 +395,7 @@ void downloadSplashImages(String topic, int quantity)
       M5.Lcd.print("Getting first splash..");
     }
 
-    String url = "https://source.unsplash.com/random/320x240?" + topic;
+    String url = "https://source.unsplash.com/random/240x300?" + topic;
     String fileName = "/splashImage_" + String(i + 1) + ".jpg";
 
     bool result = wifiHelper->downloadFile(SD, url, fileName);
