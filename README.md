@@ -15,7 +15,7 @@ Side by side with that library, you can discover:
 
 I hope this project could be useful.
 
-![The initial setup](/images/wifi.jpg)
+![The initial setup](/images/WiFi.JPG)
 
 ![Count how many minutes you have to work hard!](/images/countDown.JPG)
 
