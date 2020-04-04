@@ -189,10 +189,7 @@ void drawPage(int orientation)
   switch (orientation)
   {
   case ORIENTATION_UP:
-    numberOfTicksDrew = 0;
-    M5.Lcd.setFreeFont(FS9);
-    resetBreakDuration();
-    drawTicksContainer();
+    setupOrientationUp();
     break;
   case ORIENTATION_RIGHT:
     break;
@@ -200,14 +197,37 @@ void drawPage(int orientation)
     drawTicksContainer();
     break;
   case ORIENTATION_LEFT:
-    M5.Lcd.setFreeFont(FSB9);
-    M5.Lcd.setTextColor(BLACK, YELLOW);
-    startBreak = millis();
-    drawBreakDuration();
+    setupOrientationLeft();
     break;
   default:
     break;
   }
+}
+
+void setupOrientationUp()
+{
+  // setup text
+  M5.Lcd.setFreeFont(FS9);
+
+  // reset counters
+  resetBreakDuration();
+  numberOfTicksDrew = 0;
+
+  // draw base container
+  drawTicksContainer();
+}
+
+void setupOrientationLeft()
+{
+  // setup text
+  M5.Lcd.setFreeFont(FSB9);
+  M5.Lcd.setTextColor(BLACK, YELLOW);
+
+  // reset counters
+  startBreak = millis();
+
+  // draw
+  drawBreakDuration();
 }
 
 bool canContinueToDrawTicks()
@@ -252,7 +272,7 @@ void drawTicks()
     if ((numberOfTicksDrew == 0 || i >= numberOfTicksDrew) && numberOfTicksDrew <= NUMBER_OF_TICKS)
     {
       Serial.println("Draw tick " + String(i) + ", ticks drew: " + String(numberOfTicksDrew));
-      M5.Lcd.drawJpgFile(SD, (String("/row-1-col-") + String(i) + String(".jpg")).c_str(), 40 + ((i-1) * 24), 0);
+      M5.Lcd.drawJpgFile(SD, (String("/row-1-col-") + String(i) + String(".jpg")).c_str(), 40 + ((i - 1) * 24), 0);
       numberOfTicksDrew++;
     }
   }
