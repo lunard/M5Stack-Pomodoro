@@ -44,7 +44,7 @@ int lastOrientation = -1;
 #define TICK_CONTEINER_HEIGHT_IN_PX 190
 #define TICK_CONTEINER_WIDTH_IN_PX 160
 
-int tickDurationInSec = 2;
+int tickDurationInSec = 5;
 int currentTick = 0;
 unsigned long lastTickCheck = 0;
 
@@ -54,6 +54,8 @@ unsigned long lastSplashRefresh = 0;
 #define NUMBER_OF_TICKS 10 // a tick is a single interval of timer
 int tickHeight = (TICK_CONTEINER_HEIGHT_IN_PX / NUMBER_OF_TICKS) - 2;
 #define NUMBERS_OF_SPLASH_IMG 50
+int numberOfTicksDrew = 0;
+bool isDrwaingTicks = false;
 
 unsigned long startBreak = 0;
 struct Config
@@ -141,7 +143,7 @@ void loop()
 
   // check tick
   long currentMillis = millis();
-  if (canContinueToDrawTicks() && (currentTick == 0 || currentMillis - lastTickCheck > tickDurationInSec * 1000))
+  if (canContinueToDrawTicks() && (currentTick == 0 || (currentMillis - lastTickCheck) > tickDurationInSec * 1000))
   {
     currentTick++;
     lastTickCheck = currentMillis;
@@ -187,6 +189,7 @@ void drawPage(int orientation)
   switch (orientation)
   {
   case ORIENTATION_UP:
+    numberOfTicksDrew = 0;
     M5.Lcd.setFreeFont(FS9);
     resetBreakDuration();
     drawTicksContainer();
@@ -240,21 +243,37 @@ void drawRandomSplashImages()
 
 void drawTicks()
 {
-  uint16_t color = 0;
-  for (size_t i = 0; i <= currentTick; i++)
+  if (isDrwaingTicks)
+    return;
+  isDrwaingTicks = true;
+
+  for (int i = 1; i <= currentTick; i++)
   {
-    if (i <= 2)
-      color = 0x1d69;
-    if (i > 2 && i <= 4)
-      color = 0x9d6a;
-    if (i > 4 && i <= 6)
-      color = 0xe66a;
-    if (i > 6 && i <= 8)
-      color = 0xe50a;
-    if (i > 8 && i <= 10)
-      color = 0xe06a;
-    M5.Lcd.fillRect(81, 231 - (tickHeight * (i + 1)), TICK_CONTEINER_WIDTH_IN_PX - 1, tickHeight - 1, color);
+    if ((numberOfTicksDrew == 0 || i >= numberOfTicksDrew) && numberOfTicksDrew <= NUMBER_OF_TICKS)
+    {
+      Serial.println("Draw tick " + String(i) + ", ticks drew: " + String(numberOfTicksDrew));
+      M5.Lcd.drawJpgFile(SD, (String("/row-1-col-") + String(i) + String(".jpg")).c_str(), 40 + ((i-1) * 24), 0);
+      numberOfTicksDrew++;
+    }
   }
+
+  isDrwaingTicks = false;
+
+  // uint16_t color = 0;
+  // for (size_t i = 0; i <= currentTick; i++)
+  // {
+  //   if (i <= 2)
+  //     color = 0x1d69;
+  //   if (i > 2 && i <= 4)
+  //     color = 0x9d6a;
+  //   if (i > 4 && i <= 6)
+  //     color = 0xe66a;
+  //   if (i > 6 && i <= 8)
+  //     color = 0xe50a;
+  //   if (i > 8 && i <= 10)
+  //     color = 0xe06a;
+  //   M5.Lcd.fillRect(81, 231 - (tickHeight * (i + 1)), TICK_CONTEINER_WIDTH_IN_PX - 1, tickHeight - 1, color);
+  // }
 }
 
 int CheckOrientation()
@@ -369,9 +388,13 @@ void printIMUStatus()
 
 void drawTicksContainer()
 {
-  M5.Lcd.drawFastHLine(80, 230, TICK_CONTEINER_WIDTH_IN_PX, WHITE);
-  M5.Lcd.drawFastVLine(80, 40, TICK_CONTEINER_HEIGHT_IN_PX, WHITE);
-  M5.Lcd.drawFastVLine(240, 40, TICK_CONTEINER_HEIGHT_IN_PX, WHITE);
+  M5.Lcd.drawPngFile(SD, "/pomodoro-alpha.png", 40, 0);
+  M5.Lcd.fillRect(0, 0, 40, 240, RED);   // clear
+  M5.Lcd.fillRect(280, 0, 40, 240, RED); // clear
+
+  // M5.Lcd.drawFastHLine(80, 230, TICK_CONTEINER_WIDTH_IN_PX, WHITE);
+  // M5.Lcd.drawFastVLine(80, 40, TICK_CONTEINER_HEIGHT_IN_PX, WHITE);
+  // M5.Lcd.drawFastVLine(240, 40, TICK_CONTEINER_HEIGHT_IN_PX, WHITE);
 }
 
 void downloadSplashImages(String topic, int quantity)
