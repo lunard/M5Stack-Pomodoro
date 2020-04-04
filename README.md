@@ -4,7 +4,7 @@ Pomodoro is a "tool" used by developer to set a count down defining how long wor
 
 This project uses my WiFiHelper library https://github.com/lunard/WiFiHelper
 
-Side by side with that library, you can discover ho:
+Side by side with that library, you can discover:
 - connect to a WiFi
 - setup the internal clock using a NTP
 - write and read JSON serialized and deserialized configuration on file 
