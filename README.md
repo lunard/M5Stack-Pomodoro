@@ -10,7 +10,7 @@ Side by side with that library, you can discover:
 - write and read JSON serialized and deserialized configuration on file 
 - use images to make the M5Stack dynamic
 - download images from Unsplash API (https://source.unsplash.com/) 
-- show a donwload using a funny progress bar
+- show a donwload files using a funny progress bar
 - use the gyroscope to detect the 4 main orientations UP,DOWN,LEFT,RIGHT
 
 I hope this project could be useful.
