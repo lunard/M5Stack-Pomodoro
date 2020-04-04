@@ -44,9 +44,11 @@ int lastOrientation = -1;
 #define TICK_CONTEINER_HEIGHT_IN_PX 190
 #define TICK_CONTEINER_WIDTH_IN_PX 160
 
-int tickDurationInSec = 5;
+int tickDurationInSec = 300;
 int currentTick = 0;
 unsigned long lastTickCheck = 0;
+unsigned long tickCountStartupTime = 0;
+int lastTickRemainingTime = 0; // store the last calculated remaining time
 
 unsigned long remoteSplashImgDownloadTimeoutInSec = 60 * 60 * 24 * 7;
 unsigned long lastSplashRefresh = 0;
@@ -145,6 +147,9 @@ void loop()
   long currentMillis = millis();
   if (canContinueToDrawTicks() && (currentTick == 0 || (currentMillis - lastTickCheck) > tickDurationInSec * 1000))
   {
+    if (currentTick == 0)
+      tickCountStartupTime = currentMillis;
+
     currentTick++;
     lastTickCheck = currentMillis;
   }
@@ -163,6 +168,9 @@ void drawPage(int orientation)
   }
   else
   {
+
+    setupOnOrientationChange(orientation);
+
     switch (orientation)
     {
     case ORIENTATION_UP:
@@ -181,7 +189,10 @@ void drawPage(int orientation)
       break;
     }
   }
+}
 
+void setupOnOrientationChange(int orientation)
+{
   if (orientation < 0 || lastOrientation == orientation)
     return;
 
@@ -208,6 +219,8 @@ void setupOrientationUp()
 {
   // setup text
   M5.Lcd.setFreeFont(FS9);
+  M5.Lcd.setTextColor(BLACK, RED);
+  M5.Lcd.setFreeFont(FSB18);
 
   // reset counters
   resetBreakDuration();
@@ -263,6 +276,8 @@ void drawRandomSplashImages()
 
 void drawTicks()
 {
+  drawTickInfo();
+
   if (isDrwaingTicks)
     return;
   isDrwaingTicks = true;
@@ -294,6 +309,43 @@ void drawTicks()
   //     color = 0xe06a;
   //   M5.Lcd.fillRect(81, 231 - (tickHeight * (i + 1)), TICK_CONTEINER_WIDTH_IN_PX - 1, tickHeight - 1, color);
   // }
+}
+
+void drawTickInfo()
+{
+  int remainingTime = getRemainingTicksMinuted();
+
+  if (lastTickRemainingTime == 0 || lastTickRemainingTime > remainingTime)
+  {
+    Serial.println("Remaining time: " + String(remainingTime) + "min, lastTickRemainingTime=" + String(lastTickRemainingTime) + "min");
+
+    M5.Lcd.fillRect(0, 0, 40, 240, RED);
+    String minutes = String(remainingTime);
+    int numOfDecimal = minutes.length();
+    for (int i = 0; i < numOfDecimal; i++)
+    {
+      M5.Lcd.setCursor(5, 100 + i * 30 + (3-numOfDecimal)* 20);
+      M5.Lcd.print(minutes.charAt(i));
+    }
+
+    M5.Lcd.setCursor(285, 100);
+    M5.Lcd.print("m");
+    M5.Lcd.setCursor(292, 130);
+    M5.Lcd.print("i");
+    M5.Lcd.setCursor(290, 155);
+    M5.Lcd.print("n");
+
+    lastTickRemainingTime = remainingTime;
+  }
+}
+
+int getRemainingTicksMinuted()
+{
+  int minutes = (int)(((NUMBER_OF_TICKS - currentTick) * tickDurationInSec) / 60);
+  if (minutes <= 0)
+    return 1;
+  else
+    return minutes;
 }
 
 int CheckOrientation()
@@ -409,8 +461,8 @@ void printIMUStatus()
 void drawTicksContainer()
 {
   M5.Lcd.drawPngFile(SD, "/pomodoro-alpha.png", 40, 0);
-  M5.Lcd.fillRect(0, 0, 40, 240, RED);   // clear
-  M5.Lcd.fillRect(280, 0, 40, 240, RED); // clear
+  M5.Lcd.fillRect(0, 0, 40, 240, RED);
+  M5.Lcd.fillRect(280, 0, 40, 240, RED);
 
   // M5.Lcd.drawFastHLine(80, 230, TICK_CONTEINER_WIDTH_IN_PX, WHITE);
   // M5.Lcd.drawFastVLine(80, 40, TICK_CONTEINER_HEIGHT_IN_PX, WHITE);
