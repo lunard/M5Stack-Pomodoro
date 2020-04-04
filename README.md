@@ -14,3 +14,9 @@ Side by side with that library, you can discover:
 - use the gyroscope to detect the 4 main orientations UP,DOWN,LEFT,RIGHT
 
 I hope this project could be useful.
+
+![The initial setup](/images/wifi.jpg)
+
+![Count how many minutes you have to work hard!](/images/countDown.JPG)
+
+![Where is he?! .. ahhh, he toke a break](/images/break.JPG)
